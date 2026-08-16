@@ -1,0 +1,27 @@
+--- a/libdnet-stripped/src/route-linux.c
++++ b/libdnet-stripped/src/route-linux.c
+@@ -44,6 +44,15 @@
+ 	int	 nlfd;
+ };
+ 
++/* dnet's ip6_addr_t is not struct in6_addr. Avoid Android's
++ * IN6_IS_ADDR_UNSPECIFIED macro, which assumes the latter. */
++static int
++ip6_addr_is_unspecified(const ip6_addr_t *address)
++{
++	static const ip6_addr_t unspecified;
++	return (memcmp(address, &unspecified, sizeof(*address)) == 0);
++}
++
+ route_t *
+ route_open(void)
+ {
+@@ -146,7 +155,7 @@
+ 
+ 	memcpy(&rt.rtmsg_dst, &dst.addr_ip6, sizeof(rt.rtmsg_dst));
+ 
+-	if (!IN6_IS_ADDR_UNSPECIFIED(&entry->route_gw.addr_ip6)) {
++	if (!ip6_addr_is_unspecified(&entry->route_gw.addr_ip6)) {
+ 		rt.rtmsg_flags |= RTF_GATEWAY;
+ 		memcpy(&rt.rtmsg_gateway, &entry->route_gw.addr_ip6,
+ 				sizeof(rt.rtmsg_gateway));
