@@ -1,0 +1,13 @@
+.gradle/
+.idea/
+local.properties
+build/
+app/build/
+.native-build/
+.upstream-download/
+third_party/nmap/
+third_party/vulscan/
+app/src/main/assets/nmap-data/
+app/src/main/jniLibs/arm64-v8a/libnmap.so
+*.apk
+*.aab
