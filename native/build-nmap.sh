@@ -85,7 +85,10 @@ export STRIP="$strip"
 export CPP="$cc -E"
 export CFLAGS="${CFLAGS:-} -O2 -fPIE -fPIC -D__ANDROID_API__=${api_level}"
 export CXXFLAGS="${CXXFLAGS:-} -O2 -fPIE -fPIC -D__ANDROID_API__=${api_level}"
-export LDFLAGS="${LDFLAGS:-} -pie -Wl,-z,relro,-z,now"
+# Current Android NDK LLD rejects a few intentionally optional PCRE exports
+# listed in PCRE's version script. GNU ld accepted these historically; this
+# restores that behaviour while retaining the hardened PIE linker flags.
+export LDFLAGS="${LDFLAGS:-} -pie -Wl,-z,relro,-z,now -Wl,--undefined-version"
 
 ./configure \
     --build="$(uname -m)-pc-linux-gnu" \
@@ -129,4 +132,3 @@ fi
 
 mv -f "$temporary_output" "$output_file"
 printf 'Built %s\n' "$output_file"
-
