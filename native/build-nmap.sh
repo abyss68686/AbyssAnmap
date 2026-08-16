@@ -77,6 +77,11 @@ trap 'rm -rf "$build_dir"' EXIT
 cp -a "$source_dir" "$build_dir/nmap"
 cd "$build_dir/nmap"
 
+# libdnet's Linux route implementation calls a libc IPv6 macro with dnet's
+# own IPv6 type. Android's headers reject that type mismatch, so apply the
+# small compatibility patch before configure generates subproject Makefiles.
+patch --batch -p1 < "$project_root/native/patches/libdnet-android-ipv6.patch"
+
 export CC="$cc"
 export CXX="$cxx"
 export AR="$ar"
