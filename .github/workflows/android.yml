@@ -30,7 +30,10 @@ jobs:
       - name: Install Android platform and NDK
         shell: bash
         run: |
-          yes | sdkmanager --licenses
+          # `yes` exits with SIGPIPE once sdkmanager has accepted all licences.
+          # Mask only that expected producer exit; pipefail still catches a
+          # real sdkmanager failure.
+          (yes || true) | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.1.12297006"
 
       - name: Fetch and stage supplied Nmap and Vulscan sources
