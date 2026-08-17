@@ -23,7 +23,9 @@ version correlations, not verified vulnerabilities.
 
 ## Build
 
-The project targets **arm64-v8a** and Android 8.0+.
+The project targets **arm64-v8a** and Android 8.0+. The native build bundles
+both the Nmap executable and the matching NDK `libc++_shared.so` runtime; both
+must be present in the installed APK.
 
 Prerequisites:
 
@@ -50,8 +52,10 @@ The resulting APK is `app/build/outputs/apk/debug/app-debug.apk`.
 The included GitHub Actions workflow installs the SDK/NDK, fetches the exact
 official Nmap and Vulscan Git revisions represented by the supplied archives,
 stages every NSE script and the full Vulscan bundle, cross-compiles Nmap, builds
-the APK, and uploads it as the `Abyss-Anmap-debug-apk` artifact. It runs on
-`main`/`master`, pull requests, or manually from **Actions**.
+the APK, verifies that both native ELF files are packaged, and uploads it as the
+`Abyss-Anmap-debug-apk` artifact. It runs on `main`/`master`, pull requests, or
+manually from **Actions**. To publish a release, make the final commit message
+`Publish Abyss Anmap vX.Y.Z`, matching `versionName` in `app/build.gradle.kts`.
 
 ## Source layout
 
