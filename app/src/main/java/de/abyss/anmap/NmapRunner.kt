@@ -18,6 +18,11 @@ class NmapRunner(context: Context) {
         check(binary.isFile) {
             "Die native Nmap-Komponente fehlt. Die APK muss nach native/build-nmap.sh gebaut werden."
         }
+        val nativeLibraryDir = requireNotNull(binary.parentFile)
+        val cxxRuntime = File(nativeLibraryDir, "libc++_shared.so")
+        check(cxxRuntime.isFile) {
+            "Die NDK-C++-Runtime fehlt. Bitte die aktuelle Abyss-Anmap-Version installieren."
+        }
         binary.setExecutable(true, false)
 
         val command = buildCommand(binary, dataDirectory, request)
@@ -30,6 +35,14 @@ class NmapRunner(context: Context) {
                 .apply {
                     environment()["NMAPDIR"] = dataDirectory.absolutePath
                     environment()["HOME"] = appContext.filesDir.absolutePath
+                    environment()["LD_LIBRARY_PATH"] = listOf(
+                        nativeLibraryDir.absolutePath,
+                        environment()["LD_LIBRARY_PATH"]
+                    )
+                        .filterNotNull()
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .joinToString(File.pathSeparator)
                 }
                 .start()
         } catch (error: IOException) {
