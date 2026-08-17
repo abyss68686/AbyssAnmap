@@ -54,7 +54,7 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Assemble debug APK
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:verifyDebugApkNativeLibraries
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -65,17 +65,30 @@ jobs:
           retention-days: 14
 
   release:
-    name: Publish v0.1.0
+    name: Publish release
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      github.event.head_commit.message == 'Publish Abyss Anmap v0.1.0'
+      startsWith(github.event.head_commit.message, 'Publish Abyss Anmap v')
     needs: build-apk
     runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Verify release version
+        shell: bash
+        run: |
+          release_tag="$(jq -r '.head_commit.message' "$GITHUB_EVENT_PATH" | sed -n 's/^Publish Abyss Anmap \(v[0-9][0-9.]*\)$/\1/p')"
+          version_name="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' app/build.gradle.kts)"
+          test -n "$release_tag"
+          test -n "$version_name"
+          test "$release_tag" = "v$version_name"
+          printf 'RELEASE_TAG=%s\n' "$release_tag" >> "$GITHUB_ENV"
+
       - name: Download built APK
         uses: actions/download-artifact@v4
         with:
@@ -89,8 +102,8 @@ jobs:
         run: |
           apk_path="$(find release -type f -name '*.apk' -print -quit)"
           test -n "$apk_path"
-          gh release create v0.1.0 "$apk_path" \
+          gh release create "$RELEASE_TAG" "$apk_path" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Abyss Anmap v0.1.0" \
-            --notes "Initial Android release with arm64 Nmap, the complete supplied NSE catalogue, and the offline Vulscan 2.1 database bundle."
+            --title "Abyss Anmap $RELEASE_TAG" \
+            --notes "Fix: bundled NDK C++ runtime for the arm64 Nmap executable, so the scanner starts correctly on Android. Includes the complete supplied NSE catalogue and the offline Vulscan 2.1 database bundle."
