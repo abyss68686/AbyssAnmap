@@ -47,6 +47,7 @@ case "$abi" in
     arm64-v8a)
         target="aarch64-linux-android"
         compiler_prefix="aarch64-linux-android${api_level}"
+        runtime_triple="aarch64-linux-android"
         expected_machine="AArch64"
         ;;
     *)
@@ -61,6 +62,7 @@ ar="$toolchain/bin/llvm-ar"
 ranlib="$toolchain/bin/llvm-ranlib"
 strip="$toolchain/bin/llvm-strip"
 readelf="$toolchain/bin/llvm-readelf"
+cxx_shared_library="$toolchain/sysroot/usr/lib/$runtime_triple/libc++_shared.so"
 
 for required_tool in "$cc" "$cxx" "$ar" "$ranlib" "$strip" "$readelf"; do
     if [[ ! -x "$required_tool" ]]; then
@@ -68,6 +70,11 @@ for required_tool in "$cc" "$cxx" "$ar" "$ranlib" "$strip" "$readelf"; do
         exit 1
     fi
 done
+
+if [[ ! -f "$cxx_shared_library" ]]; then
+    printf 'NDK C++ shared runtime not found: %s\n' "$cxx_shared_library" >&2
+    exit 1
+fi
 
 native_parent="$project_root/.native-build"
 mkdir -p "$native_parent"
@@ -118,12 +125,15 @@ make -j"$jobs" nmap
 
 output_dir="$project_root/app/src/main/jniLibs/$abi"
 output_file="$output_dir/libnmap.so"
+runtime_output_file="$output_dir/libc++_shared.so"
 mkdir -p "$output_dir"
 temporary_output="$(mktemp "$output_dir/libnmap.so.XXXXXX")"
-trap 'rm -rf "$build_dir"; rm -f "$temporary_output"' EXIT
+temporary_runtime_output="$(mktemp "$output_dir/libc++_shared.so.XXXXXX")"
+trap 'rm -rf "$build_dir"; rm -f "$temporary_output" "$temporary_runtime_output"' EXIT
 
 cp nmap "$temporary_output"
 "$strip" --strip-unneeded "$temporary_output"
+cp -L "$cxx_shared_library" "$temporary_runtime_output"
 
 if ! "$readelf" -h "$temporary_output" | grep -q "Machine:.*$expected_machine"; then
     printf 'Built binary has an unexpected architecture.\n' >&2
@@ -135,5 +145,16 @@ if ! "$readelf" -l "$temporary_output" | grep -q 'Requesting program interpreter
     exit 1
 fi
 
+if ! "$readelf" -d "$temporary_output" | grep -Fq 'Shared library: [libc++_shared.so]'; then
+    printf 'Built binary does not declare the expected NDK C++ shared runtime.\n' >&2
+    exit 1
+fi
+
+if ! "$readelf" -h "$temporary_runtime_output" | grep -q "Machine:.*$expected_machine"; then
+    printf 'Bundled C++ runtime has an unexpected architecture.\n' >&2
+    exit 1
+fi
+
 mv -f "$temporary_output" "$output_file"
-printf 'Built %s\n' "$output_file"
+mv -f "$temporary_runtime_output" "$runtime_output_file"
+printf 'Built %s and bundled %s\n' "$output_file" "$runtime_output_file"
